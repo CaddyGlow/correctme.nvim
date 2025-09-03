@@ -17,7 +17,8 @@ function M.call(prompt, callback, config)
   end
 
   local curl_cmd = string.format(
-    "curl -s -X POST %s/messages -H 'x-api-key: %s' -H 'Content-Type: application/json' -H 'anthropic-version: 2023-06-01' -d %s",
+    'curl -s -X POST %s/messages -H "x-api-key: %s" -H "Content-Type: application/json" '
+      .. '-H "anthropic-version: 2023-06-01" -d %s',
     config.base_url,
     config.api_key,
     fn.shellescape(fn.json_encode({

@@ -88,8 +88,7 @@ function M.clean_correction(response)
 
   -- Clean up the correction more aggressively
   correction = correction:match('^(.-)\n\nExplanation') or correction
-  correction = correction:match('^(.-)%. Explanation') or correction
-  correction = correction:match('^(.-) Explanation') or correction
+  correction = correction:match('^(.-)%s+Explanation') or correction
   correction = vim.trim(correction)
 
   return correction:len() > 0 and correction or nil

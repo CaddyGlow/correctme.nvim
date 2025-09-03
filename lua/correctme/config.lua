@@ -92,11 +92,16 @@ M.default_config = {
 
   -- Prompts
   prompts = {
-    proofreading = [[Proofread the following message in American English. If it is grammatically correct, just respond with the word "Correct". If it is grammatically incorrect or has spelling mistakes, respond with "Correction: ", followed by the corrected version.
+    proofreading = [[Proofread the following message in American English. If it is grammatically correct, ]]
+      .. [[just respond with the word "Correct". ]]
+      .. [[If it is grammatically incorrect or has spelling mistakes, respond with "Correction: ", ]]
+      .. [[followed by the corrected version.
 {text}]],
-    rewrite = [[Rewrite the following text for clarity in its original language. Keep the same meaning but improve readability. Respond with ONLY the improved text:
+    rewrite = [[Rewrite the following text for clarity in its original language. ]]
+      .. [[Keep the same meaning but improve readability. Respond with ONLY the improved text:
 {text}]],
-    synonyms = [[Give up to 5 synonyms for the expression "{expression}". Just respond with the synonyms, separated by newlines.]],
+    synonyms = [[Give up to 5 synonyms for the expression "{expression}". ]]
+      .. [[Just respond with the synonyms, separated by newlines.]],
   },
 
   -- Check interval in milliseconds
@@ -117,6 +122,13 @@ function M.resolve_provider_config(provider_config, defaults)
       if resolved[field] == nil and provider_defaults[field] then
         resolved[field] = provider_defaults[field]
       end
+    end
+  end
+
+  -- Apply defaults for any remaining nil fields
+  for field, default_value in pairs(provider_defaults) do
+    if resolved[field] == nil then
+      resolved[field] = default_value
     end
   end
 

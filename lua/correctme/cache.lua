@@ -85,7 +85,7 @@ function M.check_buffer_smart(bufnr, call_ai_provider, prompts, apply_diagnostic
         if pending == 0 then
           -- Collect all cached errors for current paragraphs
           local all_errors = {}
-          for j, para in ipairs(paragraphs) do
+          for j, _ in ipairs(paragraphs) do
             local cached_error = buffer_state.processed_paragraphs[current_paragraph_hashes[j]]
             if cached_error then
               -- Update line number for current position
