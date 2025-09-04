@@ -100,6 +100,30 @@ M.default_config = {
     rewrite = [[Rewrite the following text for clarity in its original language. ]]
       .. [[Keep the same meaning but improve readability. Respond with ONLY the improved text:
 {text}]],
+    proofread = [[Proofread and correct the following text. Fix any grammar, spelling, or punctuation errors. ]]
+      .. [[Respond with ONLY the corrected text:
+{text}]],
+    rephrase = [[Rephrase the following text while keeping the same meaning. ]]
+      .. [[Use different words and sentence structure. Respond with ONLY the rephrased text:
+{text}]],
+    professional = [[Rewrite the following text in a professional, formal tone suitable for business communication. ]]
+      .. [[Maintain the original meaning but make it more polished and professional. ]]
+      .. [[Respond with ONLY the rewritten text:
+{text}]],
+    friendly = [[Rewrite the following text in a friendly, casual tone that feels warm and approachable. ]]
+      .. [[Keep the same meaning but make it sound more conversational and friendly. ]]
+      .. [[Respond with ONLY the rewritten text:
+{text}]],
+    emojify = [[Rewrite the following text by adding appropriate emojis to make it more expressive and engaging. ]]
+      .. [[Keep the original meaning and tone but enhance it with relevant emojis. ]]
+      .. [[Respond with ONLY the text with emojis:
+{text}]],
+    elaborate = [[Expand and elaborate on the following text. Add more detail, context, and explanation ]]
+      .. [[while maintaining the original meaning and tone. Respond with ONLY the expanded text:
+{text}]],
+    shorten = [[Shorten the following text while keeping the essential meaning and key points. ]]
+      .. [[Make it more concise and to the point. Respond with ONLY the shortened text:
+{text}]],
     synonyms = [[Give up to 5 synonyms for the expression "{expression}". ]]
       .. [[Just respond with the synonyms, separated by newlines.]],
   },

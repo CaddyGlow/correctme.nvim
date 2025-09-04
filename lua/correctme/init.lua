@@ -4,7 +4,7 @@
 local M = {}
 
 -- Lazy load modules
-local config, providers, utils, cache, diff, statusline, diagnostics
+local config, providers, utils, cache, diff, statusline, diagnostics, preview
 local api = vim.api
 local fn = vim.fn
 
@@ -25,6 +25,7 @@ local function load_modules()
     diff = require('correctme.diff')
     statusline = require('correctme.statusline')
     diagnostics = require('correctme.diagnostics')
+    preview = require('correctme.preview')
     state.initialized = true
   end
 end
@@ -128,38 +129,65 @@ M.stop_checking = function()
   diagnostics.clear_diagnostics()
 end
 
--- Rewrite selected text
-M.rewrite_selection = function()
+-- Rewrite selected text or whole document with specified prompt type
+M.rewrite_selection = function(prompt_type, range_info)
   load_modules()
-  local start_pos = fn.getpos("'<")
-  local end_pos = fn.getpos("'>")
+  prompt_type = prompt_type or 'rewrite'
 
-  -- Ensure valid line range
-  local start_line = start_pos[2] - 1
-  local end_line = end_pos[2]
-
-  if start_line < 0 or end_line < 0 or start_line > end_line then
-    print('Invalid selection range')
+  -- Validate prompt type
+  if not state.config.prompts[prompt_type] then
+    print('Invalid prompt type: ' .. prompt_type)
+    print('Available types: ' .. table.concat(vim.tbl_keys(state.config.prompts), ', '))
     return
   end
 
-  local lines = api.nvim_buf_get_lines(0, start_line, end_line, false)
-  local text = table.concat(lines, '\n')
+  local start_line, end_line, text
+
+  -- Check if we have range information (called from command with range)
+  if range_info and range_info.line1 and range_info.line2 then
+    -- Range provided from command
+    start_line = range_info.line1 - 1
+    end_line = range_info.line2
+    local lines = api.nvim_buf_get_lines(0, start_line, end_line, false)
+    text = table.concat(lines, '\n')
+  else
+    -- Check for visual selection
+    local start_pos = fn.getpos("'<")
+    local end_pos = fn.getpos("'>")
+
+    -- Check if we have a valid visual selection
+    if start_pos[2] > 0 and end_pos[2] > 0 and start_pos[2] <= end_pos[2] then
+      start_line = start_pos[2] - 1
+      end_line = end_pos[2]
+      local lines = api.nvim_buf_get_lines(0, start_line, end_line, false)
+      text = table.concat(lines, '\n')
+    else
+      -- No selection, use whole document
+      start_line = 0
+      local lines = api.nvim_buf_get_lines(0, 0, -1, false)
+      text = table.concat(lines, '\n')
+      end_line = #lines
+    end
+  end
 
   if text == '' then
-    print('No text selected')
+    print('No text to rewrite')
     return
   end
 
-  local prompt = state.config.prompts.rewrite:gsub('{text}', text)
+  print('Rewriting text with ' .. prompt_type .. ' style...')
+
+  local prompt = state.config.prompts[prompt_type]:gsub('{text}', text)
 
   call_ai_provider(prompt, function(response)
     if response then
       -- Clean response (remove extra whitespace)
       response = vim.trim(response)
-      -- Replace selection with rewritten text
-      local new_lines = vim.split(response, '\n')
-      api.nvim_buf_set_lines(0, start_line, end_line, false, new_lines)
+      -- Show preview instead of directly applying changes
+      local current_buf = api.nvim_get_current_buf()
+      preview.show_preview(current_buf, text, response, start_line, end_line, prompt_type)
+    else
+      print('Failed to rewrite text')
     end
   end)
 end
@@ -200,6 +228,18 @@ M.get_synonyms = function()
   end)
 end
 
+-- Accept preview changes
+M.accept_preview = function()
+  load_modules()
+  preview.accept_changes()
+end
+
+-- Reject preview changes
+M.reject_preview = function()
+  load_modules()
+  preview.reject_changes()
+end
+
 -- Expose statusline function
 M.statusline = function()
   load_modules()
@@ -217,9 +257,26 @@ M.setup = function(opts)
     command! LLMStopChecking lua require('correctme').stop_checking()
     command! LLMCheckDocument lua require('correctme').check_document()
     command! LLMCheckDocumentDiff lua require('correctme').check_document_diff()
-    command! -range LLMRewrite lua require('correctme').rewrite_selection()
+    command! -range=% LLMRewrite lua require('correctme').rewrite_selection(
+      \ 'rewrite', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMProofread lua require('correctme').rewrite_selection(
+      \ 'proofread', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMRephrase lua require('correctme').rewrite_selection(
+      \ 'rephrase', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMProfessional lua require('correctme').rewrite_selection(
+      \ 'professional', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMFriendly lua require('correctme').rewrite_selection(
+      \ 'friendly', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMEmojify lua require('correctme').rewrite_selection(
+      \ 'emojify', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMElaborate lua require('correctme').rewrite_selection(
+      \ 'elaborate', {line1=<line1>, line2=<line2>})
+    command! -range=% LLMShorten lua require('correctme').rewrite_selection(
+      \ 'shorten', {line1=<line1>, line2=<line2>})
     command! LLMSynonyms lua require('correctme').get_synonyms()
     command! LLMAccept lua require('correctme').accept_suggestion()
+    command! LLMAcceptPreview lua require('correctme').accept_preview()
+    command! LLMRejectPreview lua require('correctme').reject_preview()
   ]])
 
   -- Set up code actions for quick fixes
