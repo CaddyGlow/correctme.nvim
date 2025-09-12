@@ -11,6 +11,9 @@ description = {
 }
 dependencies = {
    "lua >= 5.1",
+},
+external_dependencies = {
+   "gitsigns.nvim",
 }
 test_dependencies = {
    "busted >= 2.0.0",

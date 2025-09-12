@@ -130,6 +130,9 @@ M.default_config = {
 
   -- Check interval in milliseconds
   check_interval = 5000,
+
+  -- Preview mode: 'buffer' or 'inline'
+  preview_mode = 'inline',
 }
 
 -- Resolve provider configuration with environment variable fallback

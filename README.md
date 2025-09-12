@@ -5,10 +5,12 @@ A Neovim plugin for grammar checking and text correction using multiple LLM prov
 ## Features
 
 - **Multi-provider support**: OpenAI GPT, Anthropic Claude, and Ollama
-- **Interactive diff mode**: Review and apply grammar suggestions one by one
+- **Interactive diff modes**: 
+  - Buffer preview: Before/after comparison in a separate buffer
+  - Inline preview: Gitsigns-style inline diff with virtual text
 - **Smart caching**: Avoid redundant API calls for unchanged text
 - **Real-time diagnostics**: Grammar issues displayed as vim diagnostics
-- **Text rewriting**: Improve clarity and readability of selected text
+- **Multiple rewrite styles**: Proofread, rephrase, professional, friendly, emojify, elaborate, shorten
 - **Synonym suggestions**: Find alternative words for better expression
 
 ## Installation
@@ -18,6 +20,9 @@ A Neovim plugin for grammar checking and text correction using multiple LLM prov
 ```lua
 {
   "caddyglow/correctme.nvim",
+  dependencies = {
+    "lewis6991/gitsigns.nvim", -- Optional: for enhanced diff preview
+  },
   config = function()
     require("correctme").setup({
       -- Optional configuration
@@ -61,7 +66,7 @@ return {
   },
 }
 ```
-
+[![test](./lua/correctme/diagnostics.lua) ]
 ## Quick Start
 
 1. Set up your API keys (if not using Ollama):
@@ -104,6 +109,7 @@ The plugin comes preconfigured with the following models:
 ```lua
 require("correctme").setup({
   provider = "local-ollama", -- Default provider
+  preview_mode = "inline", -- "buffer" or "inline" 
   providers = {
     ["local-ollama"] = {
       type = "ollama",
@@ -123,6 +129,14 @@ require("correctme").setup({
   },
 })
 ```
+
+### Preview Modes
+
+- **Buffer Preview** (`preview_mode = "buffer"`): Shows before/after comparison in a separate buffer
+- **Inline Preview** (`preview_mode = "inline"`): Shows changes directly in buffer using gitsigns-style virtual text
+
+Toggle between modes: `:LLMTogglePreview`
+Set mode explicitly: `:LLMSetPreview inline` or `:LLMSetPreview buffer`
 
 ## Key Bindings (Suggested)
 

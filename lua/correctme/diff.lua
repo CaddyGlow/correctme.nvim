@@ -3,6 +3,8 @@
 
 local utils = require('correctme.utils')
 local cache = require('correctme.cache')
+local inline_preview = require('correctme.inline_preview')
+local interactive_preview = require('correctme.interactive_preview')
 
 local M = {}
 
@@ -13,12 +15,14 @@ local diff_state = {
   current_index = 1,
   buffer = nil,
   namespace = nil,
+  preview_mode = 'buffer', -- 'buffer' or 'inline'
+  config = nil,
 }
 
 -- Forward declarations for diff mode functions
 local next_suggestion, exit_diff_mode
 
--- Show inline diff for current suggestion
+-- Show current suggestion using preview system
 local function show_current_diff()
   if not diff_state.active or #diff_state.suggestions == 0 then
     return
@@ -30,34 +34,44 @@ local function show_current_diff()
   end
 
   local bufnr = diff_state.buffer
-  local ns = diff_state.namespace
-
-  -- Clear previous highlights
-  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-
-  -- Highlight current line
   local line_num = suggestion.line - 1
-  vim.api.nvim_buf_add_highlight(bufnr, ns, 'DiffDelete', line_num, 0, -1)
 
-  -- Show virtual text with suggested correction (indentation already preserved)
-  vim.api.nvim_buf_set_virtual_text(bufnr, ns, line_num, {
-    { string.format('  → %s', suggestion.correction), 'DiffAdd' },
-    {
-      string.format(
-        '  [%d/%d] (y)es/(n)o/(q)uit',
-        diff_state.current_index,
-        #diff_state.suggestions
-      ),
-      'Comment',
-    },
-  }, {})
+  -- Clear any existing previews
+  if diff_state.preview_mode == 'inline' then
+    inline_preview.clear_inline_preview()
+  else
+    interactive_preview.close_preview()
+  end
 
   -- Move cursor to the line
   vim.api.nvim_win_set_cursor(0, { suggestion.line, 0 })
 
+  -- Show preview based on mode
+  if diff_state.preview_mode == 'inline' then
+    -- Use inline preview for interactive mode
+    inline_preview.show_inline_preview(
+      bufnr,
+      suggestion.original,
+      suggestion.correction,
+      line_num,
+      line_num + 1,
+      'interactive'
+    )
+  else
+    -- Use interactive split preview (original on top, correction below)
+    local suggestion_info =
+      string.format('%d/%d', diff_state.current_index, #diff_state.suggestions)
+    interactive_preview.show_interactive_preview(
+      suggestion.original,
+      suggestion.correction,
+      'grammar',
+      suggestion_info
+    )
+  end
+
   print(
     string.format(
-      'Suggestion %d/%d: %s → %s',
+      'Interactive mode %d/%d: %s → %s (y/n/q)',
       diff_state.current_index,
       #diff_state.suggestions,
       suggestion.original,
@@ -77,20 +91,8 @@ local function accept_current_suggestion()
     return
   end
 
-  -- Debug: print what we're replacing
+  -- Apply the change - for interactive mode, we always apply manually since it's just suggestions
   local line_num = suggestion.line - 1
-  local current_line = vim.api.nvim_buf_get_lines(diff_state.buffer, line_num, line_num + 1, false)[1]
-    or ''
-  print(
-    string.format(
-      "Replacing line %d: '%s' → '%s'",
-      suggestion.line,
-      current_line,
-      suggestion.correction
-    )
-  )
-
-  -- Replace the line with the correction (indentation already preserved)
   vim.api.nvim_buf_set_lines(
     diff_state.buffer,
     line_num,
@@ -99,6 +101,14 @@ local function accept_current_suggestion()
     { suggestion.correction }
   )
 
+  -- Clear the appropriate preview
+  if diff_state.preview_mode == 'inline' then
+    inline_preview.clear_inline_preview()
+  else
+    interactive_preview.close_preview()
+  end
+
+  print(string.format("Accepted: '%s' → '%s'", suggestion.original, suggestion.correction))
   next_suggestion()
 end
 
@@ -106,6 +116,13 @@ end
 exit_diff_mode = function()
   if not diff_state.active then
     return
+  end
+
+  -- Clear previews based on mode
+  if diff_state.preview_mode == 'inline' then
+    inline_preview.clear_inline_preview()
+  else
+    interactive_preview.close_preview()
   end
 
   -- Clear highlights
@@ -119,8 +136,9 @@ exit_diff_mode = function()
   diff_state.current_index = 1
   diff_state.buffer = nil
   diff_state.namespace = nil
+  diff_state.config = nil
 
-  print('Exited diff mode')
+  print('Exited interactive diff mode')
 end
 
 -- Move to next suggestion
@@ -135,6 +153,13 @@ next_suggestion = function()
   -- Adjust index if we removed the last item
   if diff_state.current_index > #diff_state.suggestions then
     diff_state.current_index = #diff_state.suggestions
+  end
+
+  -- Clear previous previews
+  if diff_state.preview_mode == 'inline' then
+    inline_preview.clear_inline_preview()
+  else
+    interactive_preview.close_preview()
   end
 
   -- Clear previous highlights before moving to next
@@ -157,7 +182,7 @@ local function decline_current_suggestion()
 end
 
 -- Interactive document check with diff mode
-function M.check_document_diff(call_ai_provider, prompts)
+function M.check_document_diff(call_ai_provider, prompts, config)
   local api = vim.api
   local bufnr = api.nvim_get_current_buf()
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -197,6 +222,8 @@ function M.check_document_diff(call_ai_provider, prompts)
           diff_state.current_index = 1
           diff_state.buffer = bufnr
           diff_state.namespace = api.nvim_create_namespace('correctme_diff')
+          diff_state.config = config or {}
+          diff_state.preview_mode = (config and config.preview_mode) or 'buffer'
 
           print('Found ' .. #errors .. ' suggestions. Starting interactive diff mode...')
           show_current_diff()

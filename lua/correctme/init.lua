@@ -4,7 +4,7 @@
 local M = {}
 
 -- Lazy load modules
-local config, providers, utils, cache, diff, statusline, diagnostics, preview
+local config, providers, utils, cache, diff, statusline, diagnostics, diff_preview, inline_preview
 local api = vim.api
 local fn = vim.fn
 
@@ -25,7 +25,8 @@ local function load_modules()
     diff = require('correctme.diff')
     statusline = require('correctme.statusline')
     diagnostics = require('correctme.diagnostics')
-    preview = require('correctme.preview')
+    diff_preview = require('correctme.diff_preview')
+    inline_preview = require('correctme.inline_preview')
     state.initialized = true
   end
 end
@@ -83,7 +84,7 @@ end
 -- Interactive document check with diff mode
 M.check_document_diff = function()
   load_modules()
-  diff.check_document_diff(call_ai_provider, state.config.prompts)
+  diff.check_document_diff(call_ai_provider, state.config.prompts, state.config)
 end
 
 -- Start checking current buffer
@@ -183,9 +184,29 @@ M.rewrite_selection = function(prompt_type, range_info)
     if response then
       -- Clean response (remove extra whitespace)
       response = vim.trim(response)
-      -- Show preview instead of directly applying changes
       local current_buf = api.nvim_get_current_buf()
-      preview.show_preview(current_buf, text, response, start_line, end_line, prompt_type)
+
+      -- Choose preview mode based on configuration
+      if state.config.preview_mode == 'inline' then
+        inline_preview.show_inline_preview(
+          current_buf,
+          text,
+          response,
+          start_line,
+          end_line,
+          prompt_type
+        )
+      else
+        -- Default to buffer preview
+        diff_preview.show_diff_preview(
+          current_buf,
+          text,
+          response,
+          start_line,
+          end_line,
+          prompt_type
+        )
+      end
     else
       print('Failed to rewrite text')
     end
@@ -231,13 +252,44 @@ end
 -- Accept preview changes
 M.accept_preview = function()
   load_modules()
-  preview.accept_changes()
+  if state.config.preview_mode == 'inline' then
+    inline_preview.accept_changes()
+  else
+    diff_preview.accept_changes()
+  end
 end
 
 -- Reject preview changes
 M.reject_preview = function()
   load_modules()
-  preview.reject_changes()
+  if state.config.preview_mode == 'inline' then
+    inline_preview.reject_changes()
+  else
+    diff_preview.reject_changes()
+  end
+end
+
+-- Toggle preview mode between buffer and inline
+M.toggle_preview_mode = function()
+  load_modules()
+  if state.config.preview_mode == 'inline' then
+    state.config.preview_mode = 'buffer'
+    print('Preview mode: Buffer view')
+  else
+    state.config.preview_mode = 'inline'
+    print('Preview mode: Inline diff')
+  end
+end
+
+-- Set preview mode explicitly
+M.set_preview_mode = function(mode)
+  load_modules()
+  if mode == 'inline' or mode == 'buffer' then
+    state.config.preview_mode = mode
+    print('Preview mode set to: ' .. mode)
+  else
+    print('Invalid preview mode. Use "inline" or "buffer"')
+  end
 end
 
 -- Expose statusline function
@@ -277,6 +329,8 @@ M.setup = function(opts)
     command! LLMAccept lua require('correctme').accept_suggestion()
     command! LLMAcceptPreview lua require('correctme').accept_preview()
     command! LLMRejectPreview lua require('correctme').reject_preview()
+    command! LLMTogglePreview lua require('correctme').toggle_preview_mode()
+    command! -nargs=1 LLMSetPreview lua require('correctme').set_preview_mode(<q-args>)
   ]])
 
   -- Set up code actions for quick fixes
