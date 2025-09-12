@@ -254,7 +254,7 @@ M.show_diff_preview = function(
   vim.cmd('syntax match CorrectmePreviewSection "^󰌃.*:$"')
   vim.cmd('syntax match CorrectmeDiffAdd "^│.*│ + .*"')
   vim.cmd('syntax match CorrectmeDiffDelete "^│.* - .*│"')
-  vim.cmd('syntax match CorrectmeDiffChange "^│.* ~ .*│.*~ .*"')
+  vim.cmd('syntax match CorrectmeDiffChange "^│.* \\~ .*│.*\\~ .*"')
 
   -- Open split window
   vim.cmd('split')
